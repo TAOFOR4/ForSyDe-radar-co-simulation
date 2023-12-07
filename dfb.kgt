@@ -1,0 +1,163 @@
+knode forsyde {
+   klabel "ForSyDe Model"
+   knode v_OnComplexFloat {
+      klabel "OnComplexFloat [AbstractStructure]"
+      kport onComplexFloatRes {
+         klabel "onComplexFloatRes"
+      }
+      kport weightRes {
+         klabel "weightRes"
+      }
+      knode v_FFT {
+         klabel "FFT [FunctionLikeEntity, ParallelSkeleton, ReduceV, InstrumentedBehaviour, BehaviourEntity, Executable, ReduceV]"
+         kport fftRes {
+            klabel "fftRes"
+         }
+         kport weightRes {
+            klabel "weightRes"
+         }
+         knode v_FFTvProperties {
+            size: width=600 height=35
+            klabel "properties:\n inlinedCode: 
+      complex double *fftRes = (complex double *)malloc(256 * sizeof(complex double));
+      for (int i = 0; i < 256; i++)
+        fftRes[i] = weightRes[i];
+      unsigned int bit_reverse(unsigned int x, int log2n) {
+        int n = 0;
+        for (int i = 0; i < log2n; i++) {
+          n <<= 1;
+          n |= (x & 1);
+          x >>= 1;
+        }
+        return n;
+      }
+      int log2N = log2(nFFT);
+      for (int i = 0; i < nFFT; ++i) {
+          int rev = bit_reverse(i, log2N);
+          if (i < rev) {
+              complex double temp = fftRes[i];
+              [i] = fftRes[rev];
+              fftRes[rev] = temp;
+          }
+      }
+      for (int s = 1; s <= log2N; ++s) {
+        int m = 1 << s; // 2 power s
+        int m2 = m >> 1; // m2 = m/2 -1
+        complex double w = 1;
+        complex double wm = cexp(-2.0 * PI * I / m);
+        for (int j = 0; j < m2; ++j) {
+          for (int k = j; k < nFFT; k += m) {
+            complex double t = w * fftRes[k + m2];
+            complex double u = fftRes[k];
+            fftRes[k] = u + t;
+            fftRes[k + m2] = u - t;
+          }
+          w *= wm;
+        }
+      }
+    "
+         }
+         kedge ( :fftRes -> v_OnComplexFloat:onComplexFloatRes)
+      }
+      kedge ( :weightRes -> v_FFT:weightRes)
+      kedge ( :onComplexFloatRes -> v_Envelope:onComplexFloatRes)
+   }
+   knode v_Envelope {
+      klabel "Envelope [FunctionLikeEntity, ParallelSkeleton, ReduceV, InstrumentedBehaviour, BehaviourEntity, Executable, ReduceV]"
+      kport onComplexFloatRes {
+         klabel "onComplexFloatRes"
+      }
+      knode v_EnvelopevProperties {
+         size: width=600 height=35
+         klabel "properties:\n inlinedCode:         
+      float *envelopeRes = (float *)malloc(256 * sizeof(float));
+      for (int i = 0; i < 256; i++)
+        envelopeRes[i] = cabs(onComplexFloatRes);
+    "
+      }
+   }
+   knode v_Transpose {
+      klabel "Transpose [FunctionLikeEntity, ParallelSkeleton, ReduceV, InstrumentedBehaviour, BehaviourEntity, Executable, ReduceV]"
+      kport transposeRes {
+         klabel "transposeRes"
+      }
+      knode v_TransposevProperties {
+         size: width=600 height=35
+         klabel "properties:\n inlinedCode: 
+      #define WINDOW 256
+      #define BEAM 1024
+      #define RANGE 8
+      float *transposeRes = (float *)malloc(WINDOW*BEAM*RANGE * sizeof(float));
+      for (int z = 0; z < WINDOW; z++) {
+        for (int y = 0; y < BEAM; y++) {
+          for (int x = 0; x < RANGE; x++) {
+            transposeRes[y*BEAM + x*RANGE + z] = systemInput[z][y][x];
+          }
+        }
+      }
+    "
+      }
+      kedge ( :transposeRes -> v_Weight:transposeRes)
+   }
+   knode v_Weight {
+      klabel "Weight [AbstractStructure]"
+      kport transposeRes {
+         klabel "transposeRes"
+      }
+      kport weightRes {
+         klabel "weightRes"
+      }
+      knode v_Hanning {
+         klabel "Hanning [FunctionLikeEntity, ParallelSkeleton, ReduceV, InstrumentedBehaviour, BehaviourEntity, Executable, ReduceV]"
+         kport hanningWindow {
+            klabel "hanningWindow"
+         }
+         knode v_HanningvProperties {
+            size: width=600 height=35
+            klabel "properties:\n inlinedCode: 
+      float *hanningWindow = (float *)malloc(256 * sizeof(float));
+      for (int i = 0; i < 256; i++)
+        hanningWindow[i] = 0.5 * (1 - cos((2 * pi * i) / (256 - 1)));
+    "
+         }
+         kedge ( :hanningWindow -> v_MkWeightCoefs:input)
+      }
+      knode v_MkWeightCoefs {
+         klabel "MkWeightCoefs [FunctionLikeEntity, ParallelSkeleton, ReduceV, InstrumentedBehaviour, BehaviourEntity, Executable, ReduceV]"
+         kport output {
+            klabel "output"
+         }
+         kport input {
+            klabel "input"
+         }
+         knode v_MkWeightCoefsvProperties {
+            size: width=100 height=35
+            klabel "properties:\n dimensions: [256]"
+         }
+         kedge ( :output -> v_ZipWithVMul:hanningWindow)
+      }
+      knode v_ZipWithVMul {
+         klabel "ZipWithVMul [FunctionLikeEntity, ParallelSkeleton, ReduceV, InstrumentedBehaviour, BehaviourEntity, Executable, ReduceV]"
+         kport transposeRes {
+            klabel "transposeRes"
+         }
+         kport hanningWindow {
+            klabel "hanningWindow"
+         }
+         kport weightRes {
+            klabel "weightRes"
+         }
+         knode v_ZipWithVMulvProperties {
+            size: width=600 height=35
+            klabel "properties:\n inlinedCode: 
+      float *weightRes = (float *)malloc(256 * sizeof(float));
+        for (int i = 0; i < 256; i++)
+          weightRes[i] = transposeRes[i] * hanningWindow[i];
+    "
+         }
+         kedge ( :weightRes -> v_Weight:weightRes)
+      }
+      kedge ( :transposeRes -> v_ZipWithVMul:transposeRes)
+      kedge ( :weightRes -> v_OnComplexFloat:weightRes)
+   }
+}

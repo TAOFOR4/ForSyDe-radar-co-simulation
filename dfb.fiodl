@@ -1,0 +1,343 @@
+systemgraph {
+  vertex "Transpose"
+  [forsyde::io::lib::hierarchy::behavior::BehaviourEntity, forsyde::io::lib::hierarchy::behavior::FunctionLikeEntity, forsyde::io::lib::hierarchy::behavior::parallel::ParallelSkeleton, forsyde::io::lib::hierarchy::behavior::parallel::ReduceV, forsyde::io::lib::hierarchy::implementation::functional::InstrumentedBehaviour, forsyde::io::lib::hierarchy::visualization::GreyBox, forsyde::io::lib::hierarchy::visualization::Visualizable, impl::Executable, parallel::ReduceV, visualization::GreyBox]
+  (systemInput, transposeRes)
+  {    
+    "visualizedPropertiesNames": [
+      "inlinedCode"
+    ],
+    "inlinedCodes": {
+      "generic": "
+        #define WINDOW 256
+        #define BEAM 1024
+        #define RANGE 8
+        float *transposeRes = (float *)malloc(WINDOW*BEAM*RANGE * sizeof(float));
+        for (int z = 0; z < WINDOW; z++) {
+          for (int y = 0; y < BEAM; y++) {
+            for (int x = 0; x < RANGE; x++) {
+              transposeRes[y*BEAM + x*RANGE + z] = systemInput[z][y][x];
+            }
+          }
+        }
+      "
+    },
+    "inlinedCode": "
+      #define WINDOW 256
+      #define BEAM 1024
+      #define RANGE 8
+      float *transposeRes = (float *)malloc(WINDOW*BEAM*RANGE * sizeof(float));
+      for (int z = 0; z < WINDOW; z++) {
+        for (int y = 0; y < BEAM; y++) {
+          for (int x = 0; x < RANGE; x++) {
+            transposeRes[y*BEAM + x*RANGE + z] = systemInput[z][y][x];
+          }
+        }
+      }
+    ",
+    "outputPorts":[
+      "transposeRes"
+    ],
+    "outputArray": [
+      "transposeRes"
+    ],
+    "inputPorts":[
+      "systemInput"
+    ],
+    "inputArray": [
+      "systemInput"
+    ]
+  }
+  vertex "Weight"
+  [forsyde::io::lib::hierarchy::visualization::GreyBox, platform::AbstractStructure, visualization::GreyBox]
+  (contained, transposeRes, weightRes)
+  {
+    "outputPorts":[
+      "weightRes"
+    ],
+    "outputArray": [
+      "weightRes"
+    ],
+    "inputPorts":[
+      "transposeRes"
+    ],
+    "inputArray": [
+      "transposeRes"
+    ]
+  }
+
+  vertex "Hanning"
+  [forsyde::io::lib::hierarchy::behavior::BehaviourEntity, forsyde::io::lib::hierarchy::behavior::FunctionLikeEntity, forsyde::io::lib::hierarchy::behavior::parallel::ParallelSkeleton, forsyde::io::lib::hierarchy::behavior::parallel::ReduceV, forsyde::io::lib::hierarchy::implementation::functional::InstrumentedBehaviour, forsyde::io::lib::hierarchy::visualization::GreyBox, forsyde::io::lib::hierarchy::visualization::Visualizable, impl::Executable, parallel::ReduceV, visualization::GreyBox]
+  (nFFT, hanningWindow)
+  {
+    "visualizedPropertiesNames": [
+      "inlinedCode"
+    ],
+    "inlinedCodes": {
+      "generic": "
+        float *hanningWindow = (float *)malloc(256 * sizeof(float));
+        for (int i = 0; i < 256; i++)
+          hanningWindow[i] = 0.5 * (1 - cos((2 * pi * i) / (256 - 1)));
+      "
+    },
+    "inlinedCode": "
+      float *hanningWindow = (float *)malloc(256 * sizeof(float));
+      for (int i = 0; i < 256; i++)
+        hanningWindow[i] = 0.5 * (1 - cos((2 * pi * i) / (256 - 1)));
+    ",
+    "outputPorts": [
+      "hanningWindow"
+    ],
+    "outputArray": [
+      "hanningWindow"
+    ],
+    "inputPorts": [
+      "nFFT"
+    ],
+    "inputArgumentPorts": [
+      "nFFT"
+    ]
+  }
+  vertex "MkWeightCoefs"
+  [forsyde::io::lib::hierarchy::behavior::BehaviourEntity, forsyde::io::lib::hierarchy::behavior::FunctionLikeEntity, forsyde::io::lib::hierarchy::behavior::parallel::ParallelSkeleton, forsyde::io::lib::hierarchy::behavior::parallel::ReduceV, forsyde::io::lib::hierarchy::implementation::functional::InstrumentedBehaviour, forsyde::io::lib::hierarchy::visualization::GreyBox, forsyde::io::lib::hierarchy::visualization::Visualizable, impl::Executable, parallel::ReduceV, visualization::GreyBox]
+  (arrayItemType, consumers, input, output, producer)
+  {
+    "visualizedPropertiesNames": [
+      "dimensions"
+    ],
+    "maxSizeInBits": {},
+    "dimensions": [
+      256_i
+    ],
+    "sizeInBits": 0_l
+  }  
+  vertex "ZipWithVMul"
+  [forsyde::io::lib::hierarchy::behavior::BehaviourEntity, forsyde::io::lib::hierarchy::behavior::FunctionLikeEntity, forsyde::io::lib::hierarchy::behavior::parallel::ParallelSkeleton, forsyde::io::lib::hierarchy::behavior::parallel::ReduceV, forsyde::io::lib::hierarchy::implementation::functional::InstrumentedBehaviour, forsyde::io::lib::hierarchy::visualization::GreyBox, forsyde::io::lib::hierarchy::visualization::Visualizable, impl::Executable, parallel::ReduceV, visualization::GreyBox]
+  (transposeRes, hanningWindow, weightRes)
+  {
+    "visualizedPropertiesNames": [
+      "inlinedCode"
+    ],
+    "inlinedCodes": {
+      "generic": "
+        float *weightRes = (float *)malloc(256 * sizeof(float));
+        for (int i = 0; i < 256; i++)
+          weightRes[i] = transposeRes[i] * hanningWindow[i];
+      "
+    },
+    "inlinedCode": "
+      float *weightRes = (float *)malloc(256 * sizeof(float));
+        for (int i = 0; i < 256; i++)
+          weightRes[i] = transposeRes[i] * hanningWindow[i];
+    ",    
+    "outputPorts":[
+      "weightRes"
+    ],
+    "outputArray": [
+      "weightRes"
+    ],    
+    "inputPorts":[
+      "transposeRes",
+      "hanningWindow"
+    ],
+    "inputArray": [
+      "transposeRes",
+      "hanningWindow"
+    ]
+  }
+  vertex "OnComplexFloat"
+  [forsyde::io::lib::hierarchy::visualization::GreyBox, platform::AbstractStructure, visualization::GreyBox]
+  (contained, weightRes, onComplexFloatRes)
+  {
+    "outputPorts":[
+      "onComplexFloatRes"
+    ],
+    "outputArray": [
+      "onComplexFloatRes"
+    ],
+    "inputPorts":[
+      "weightRes"
+    ],
+    "inputArray": [
+      "weightRes"
+    ]
+  }
+  vertex "FFT"
+  [forsyde::io::lib::hierarchy::behavior::BehaviourEntity, forsyde::io::lib::hierarchy::behavior::FunctionLikeEntity, forsyde::io::lib::hierarchy::behavior::parallel::ParallelSkeleton, forsyde::io::lib::hierarchy::behavior::parallel::ReduceV, forsyde::io::lib::hierarchy::implementation::functional::InstrumentedBehaviour, forsyde::io::lib::hierarchy::visualization::GreyBox, forsyde::io::lib::hierarchy::visualization::Visualizable, impl::Executable, parallel::ReduceV, visualization::GreyBox]
+  (nFFT, weightRes, fftRes)
+  {
+    "visualizedPropertiesNames": [
+      "inlinedCode"
+    ],
+    "inlinedCodes": {
+      "generic": "
+        complex double *fftRes = (complex double *)malloc(256 * sizeof(complex double));
+        for (int i = 0; i < 256; i++)
+          fftRes[i] = weightRes[i];
+        unsigned int bit_reverse(unsigned int x, int log2n) {
+          int n = 0;
+          for (int i = 0; i < log2n; i++) {
+            n <<= 1;
+            n |= (x & 1);
+            x >>= 1;
+          }
+          return n;
+        }
+        int log2N = log2(nFFT);
+        for (int i = 0; i < nFFT; ++i) {
+            int rev = bit_reverse(i, log2N);
+            if (i < rev) {
+                complex double temp = fftRes[i];
+                [i] = fftRes[rev];
+                fftRes[rev] = temp;
+            }
+        }
+        for (int s = 1; s <= log2N; ++s) {
+          int m = 1 << s; // 2 power s
+          int m2 = m >> 1; // m2 = m/2 -1
+          complex double w = 1;
+          complex double wm = cexp(-2.0 * PI * I / m);
+          for (int j = 0; j < m2; ++j) {
+            for (int k = j; k < nFFT; k += m) {
+              complex double t = w * fftRes[k + m2];
+              complex double u = fftRes[k];
+              fftRes[k] = u + t;
+              fftRes[k + m2] = u - t;
+            }
+            w *= wm;
+          }
+        }
+      "
+    },
+    "inlinedCode": "
+      complex double *fftRes = (complex double *)malloc(256 * sizeof(complex double));
+      for (int i = 0; i < 256; i++)
+        fftRes[i] = weightRes[i];
+      unsigned int bit_reverse(unsigned int x, int log2n) {
+        int n = 0;
+        for (int i = 0; i < log2n; i++) {
+          n <<= 1;
+          n |= (x & 1);
+          x >>= 1;
+        }
+        return n;
+      }
+      int log2N = log2(nFFT);
+      for (int i = 0; i < nFFT; ++i) {
+          int rev = bit_reverse(i, log2N);
+          if (i < rev) {
+              complex double temp = fftRes[i];
+              [i] = fftRes[rev];
+              fftRes[rev] = temp;
+          }
+      }
+      for (int s = 1; s <= log2N; ++s) {
+        int m = 1 << s; // 2 power s
+        int m2 = m >> 1; // m2 = m/2 -1
+        complex double w = 1;
+        complex double wm = cexp(-2.0 * PI * I / m);
+        for (int j = 0; j < m2; ++j) {
+          for (int k = j; k < nFFT; k += m) {
+            complex double t = w * fftRes[k + m2];
+            complex double u = fftRes[k];
+            fftRes[k] = u + t;
+            fftRes[k + m2] = u - t;
+          }
+          w *= wm;
+        }
+      }
+    ",    
+    "outputPorts":[
+      "fftRes"
+    ],
+    "outputArray": [
+      "fftRes"
+    ],    
+    "inputPorts":[
+      "nFFT",
+      "weightRes"
+    ],
+    "inputArray": [
+      "nFFT",
+      "weightRes"
+    ]
+  }
+  vertex "Envelope"
+  [forsyde::io::lib::hierarchy::behavior::BehaviourEntity, forsyde::io::lib::hierarchy::behavior::FunctionLikeEntity, forsyde::io::lib::hierarchy::behavior::parallel::ParallelSkeleton, forsyde::io::lib::hierarchy::behavior::parallel::ReduceV, forsyde::io::lib::hierarchy::implementation::functional::InstrumentedBehaviour, forsyde::io::lib::hierarchy::visualization::GreyBox, forsyde::io::lib::hierarchy::visualization::Visualizable, impl::Executable, parallel::ReduceV, visualization::GreyBox]
+  (onComplexFloatRes, envelopeRes)
+  {
+    "visualizedPropertiesNames": [
+      "inlinedCode"
+    ],
+    "inlinedCodes": {
+      "generic": "
+        float *envelopeRes = (float *)malloc(256 * sizeof(float));
+        for (int i = 0; i < 256; i++)
+          envelopeRes[i] = cabs(onComplexFloatRes);
+      "
+    },
+    "inlinedCode": "        
+      float *envelopeRes = (float *)malloc(256 * sizeof(float));
+      for (int i = 0; i < 256; i++)
+        envelopeRes[i] = cabs(onComplexFloatRes);
+    ",    
+    "outputPorts":[
+      "envelopeRes"
+    ],
+    "outputArray": [
+      "envelopeRes"
+    ],    
+    "inputPorts":[
+      "onComplexFloatRes"
+    ],
+    "inputArray": [
+      "onComplexFloatRes"
+    ]
+  }
+  vertex "Envelope"
+  [forsyde::io::lib::hierarchy::behavior::BehaviourEntity, forsyde::io::lib::hierarchy::behavior::FunctionLikeEntity, forsyde::io::lib::hierarchy::behavior::parallel::ParallelSkeleton, forsyde::io::lib::hierarchy::behavior::parallel::ReduceV, forsyde::io::lib::hierarchy::implementation::functional::InstrumentedBehaviour, forsyde::io::lib::hierarchy::visualization::GreyBox, forsyde::io::lib::hierarchy::visualization::Visualizable, impl::Executable, parallel::ReduceV, visualization::GreyBox]
+  (onComplexFloatRes, envelopeRes)
+  {
+    "visualizedPropertiesNames": [
+      "inlinedCode"
+    ],
+    "inlinedCodes": {
+      "generic": "
+        float *envelopeRes = (float *)malloc(256 * sizeof(float));
+        for (int i = 0; i < 256; i++)
+          envelopeRes[i] = cabs(onComplexFloatRes);
+      "
+    },
+    "inlinedCode": "        
+      float *envelopeRes = (float *)malloc(256 * sizeof(float));
+      for (int i = 0; i < 256; i++)
+        envelopeRes[i] = cabs(onComplexFloatRes);
+    ",    
+    "outputPorts":[
+      "envelopeRes"
+    ],
+    "outputArray": [
+      "envelopeRes"
+    ],    
+    "inputPorts":[
+      "onComplexFloatRes"
+    ],
+    "inputArray": [
+      "onComplexFloatRes"
+    ]
+  }
+  
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "Transpose" port "transposeRes" to "Weight" port "transposeRes"
+  edge [forsyde::io::lib::hierarchy::visualization::VisualContainment,visualization::VisualContainment] from "Weight" port "contained" to "Hanning"
+  edge [forsyde::io::lib::hierarchy::visualization::VisualContainment,visualization::VisualContainment] from "Weight" port "contained" to "MkWeightCoefs"
+  edge [forsyde::io::lib::hierarchy::visualization::VisualContainment,visualization::VisualContainment] from "Weight" port "contained" to "ZipWithVMul"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "Weight" port "transposeRes" to "ZipWithVMul" port "transposeRes"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "Hanning" port "hanningWindow" to "MkWeightCoefs" port "input"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "MkWeightCoefs" port "output" to "ZipWithVMul" port "hanningWindow"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "ZipWithVMul" port "weightRes" to "Weight" port "weightRes"
+  edge [forsyde::io::lib::hierarchy::visualization::VisualContainment,visualization::VisualContainment] from "OnComplexFloat" port "contained" to "FFT"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "Weight" port "weightRes" to "OnComplexFloat" port "weightRes"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "OnComplexFloat" port "weightRes" to "FFT" port "weightRes"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "FFT" port "fftRes" to "OnComplexFloat" port "onComplexFloatRes"
+  edge [forsyde::io::lib::hierarchy::behavior::moc::sy::SYNetworkEdge,forsyde::io::lib::hierarchy::visualization::VisualConnection,moc::sy::SYDataEdge,visualization::VisualConnection] from "OnComplexFloat" port "onComplexFloatRes" to "Envelope" port "onComplexFloatRes"
+  
+}
